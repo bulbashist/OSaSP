@@ -1,15 +1,16 @@
-﻿// lab1.cpp : Определяет точку входа для приложения.
-//
-
-#include "framework.h"
+﻿#include "framework.h"
 #include "lab1.h"
 
 #define MAX_LOADSTRING 100
+
 
 // Глобальные переменные:
 HINSTANCE hInst;                                // текущий экземпляр
 WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
 WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
+extern int MOVE_RIGHT;
+extern int MOVE_BOTTOM;
+HBRUSH brush = CreateSolidBrush(0x0000ff00);
 
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -45,27 +46,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Цикл основного сообщения:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
+         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-        }
+         }
     }
 
     return (int) msg.wParam;
 }
 
-
-
-//
-//  ФУНКЦИЯ: MyRegisterClass()
-//
-//  ЦЕЛЬ: Регистрирует класс окна.
-//
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
-
     wcex.cbSize = sizeof(WNDCLASSEX);
 
     wcex.style          = CS_HREDRAW | CS_VREDRAW;
@@ -75,7 +68,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hInstance      = hInstance;
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_LAB1));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
+	wcex.hbrBackground  =  brush;
     wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_LAB1);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
@@ -83,16 +76,6 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
-//
-//   ФУНКЦИЯ: InitInstance(HINSTANCE, int)
-//
-//   ЦЕЛЬ: Сохраняет маркер экземпляра и создает главное окно
-//
-//   КОММЕНТАРИИ:
-//
-//        В этой функции маркер экземпляра сохраняется в глобальной переменной, а также
-//        создается и выводится главное окно программы.
-//
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Сохранить маркер экземпляра в глобальной переменной
@@ -111,20 +94,31 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
-//
-//  ФУНКЦИЯ: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  ЦЕЛЬ: Обрабатывает сообщения в главном окне.
-//
-//  WM_COMMAND  - обработать меню приложения
-//  WM_PAINT    - Отрисовка главного окна
-//  WM_DESTROY  - отправить сообщение о выходе и вернуться
-//
-//
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	static HDC imageDC;
+	static bool shouldMove = false;
+	static std::atomic<bool> shouldAnimate = false;
+	static BITMAP bitmapData;
+	static RECT rect;
+	static std::thread *timerThread;
+
     switch (message)
     {
+	case WM_CREATE: {
+		HBITMAP bitmap = (HBITMAP)LoadImage(hInst, L"D:\\earth.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(bitmap, sizeof BITMAP, &bitmapData);
+		rect = { 0, 0, bitmapData.bmWidth, bitmapData.bmHeight };
+
+		HDC hdc = GetDC(hWnd);
+		imageDC = CreateTransparentBitmap(hdc, bitmap, bitmapData, brush);
+		ReleaseDC(hWnd, hdc);
+
+		timerThread = new std::thread(Animate, hWnd, &rect, &shouldAnimate);
+		timerThread->detach();
+
+		break;
+	}
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
@@ -142,11 +136,78 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+	case WM_KEYDOWN: 
+		{
+		switch (wParam)
+		{
+		case VK_UP: {
+			rect.top -= 10;
+			rect.bottom -= 10;
+			break;
+		}
+		case VK_RIGHT: 
+		{
+			rect.left += 10;
+			rect.right += 10;
+			break;
+		}
+		case VK_DOWN:
+		{
+			rect.top += 10;
+			rect.bottom += 10;
+			break;
+		}
+		case VK_LEFT:
+		{
+			rect.left -= 10;
+			rect.right -= 10;
+			break;
+		}
+		case VK_SPACE: {
+			shouldAnimate.store(!shouldAnimate.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			break;
+		}
+		}
+		InvalidateRect(hWnd, nullptr, true);
+		break;
+		}	
+	case WM_LBUTTONDOWN: {
+		shouldMove = true;
+		break;
+	}
+	case WM_MOUSEMOVE: {
+		if (shouldMove) {
+			int x = GET_X_LPARAM(lParam);
+			int y = GET_Y_LPARAM(lParam);
+			rect = { x - bitmapData.bmWidth / 2, y - bitmapData.bmHeight / 2, x + bitmapData.bmWidth / 2, y + bitmapData.bmHeight / 2};
+			InvalidateRect(hWnd, nullptr, true);
+		}
+		break;
+	}
+	case WM_LBUTTONUP: {
+		shouldMove = false;
+		break;
+	}
+	case WM_MOUSEWHEEL: {
+		int vKeys = GET_KEYSTATE_WPARAM(wParam);
+		int minDelta = (int)(GET_WHEEL_DELTA_WPARAM(wParam) / 5);
+
+		if (vKeys & MK_SHIFT) {
+			rect.right -= minDelta;
+			rect.left -= minDelta;
+		}
+		else {
+			rect.top -= minDelta;
+			rect.bottom -= minDelta;
+		}
+		InvalidateRect(hWnd, nullptr, true);
+		break;
+	}
     case WM_PAINT:
         {
-            PAINTSTRUCT ps;
+			PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Добавьте сюда любой код прорисовки, использующий HDC...
+			BitBlt(hdc, rect.left, rect.top, bitmapData.bmWidth, bitmapData.bmHeight, imageDC, 0, 0, SRCCOPY);
             EndPaint(hWnd, &ps);
         }
         break;
@@ -159,22 +220,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// Обработчик сообщений для окна "О программе".
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+
+
+int CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
     switch (message)
     {
     case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
+        return (int)TRUE;
 
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
         {
             EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
+            return (int)TRUE;
         }
         break;
     }
-    return (INT_PTR)FALSE;
+    return (int)FALSE;
 }
+	

@@ -27,9 +27,15 @@
     <ClInclude Include="lab1.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
+    <ClInclude Include="Drawing.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lab1.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Drawing.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -43,6 +49,9 @@
       <Filter>Файлы ресурсов</Filter>
     </Image>
     <Image Include="lab1.ico">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="earth.jpg">
       <Filter>Файлы ресурсов</Filter>
     </Image>
   </ItemGroup>

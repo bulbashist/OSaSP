@@ -151,18 +151,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Drawing.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="lab1.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Drawing.cpp" />
     <ClCompile Include="lab1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="lab1.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="earth.jpg" />
     <Image Include="lab1.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
