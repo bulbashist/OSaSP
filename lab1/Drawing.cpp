@@ -14,11 +14,10 @@ HDC CreateTransparentBitmap(HDC hdc, HBITMAP bitmap, BITMAP bitmapData, HBRUSH b
 	HDC imgDC = CreateCompatibleDC(hdc);
 	HDC maskDC = CreateCompatibleDC(hdc);
 	SelectObject(imgDC, bitmap);
-	COLORREF color = GetPixel(imgDC, 1, 1);
 	HBITMAP mask = CreateBitmap(bitmapData.bmWidth, bitmapData.bmHeight, 1, 1, nullptr);
 	SelectObject(maskDC, mask);
 
-	SetBkColor(imgDC, color);
+	SetBkColor(imgDC, TRANSPARENT_COLOR);
 	BitBlt(maskDC, 0, 0, bitmapData.bmWidth, bitmapData.bmHeight, imgDC, 0, 0, SRCCOPY);
 
 	BitBlt(memDC, 0, 0, bitmapData.bmWidth, bitmapData.bmHeight, imgDC, 0, 0, SRCINVERT);

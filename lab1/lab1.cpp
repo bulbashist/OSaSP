@@ -2,7 +2,8 @@
 #include "lab1.h"
 
 #define MAX_LOADSTRING 100
-
+#define IDT_TIMERDEFAULT 14
+#define TIMER_ID 2
 
 // Глобальные переменные:
 HINSTANCE hInst;                                // текущий экземпляр
@@ -94,8 +95,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	static HDC imageDC;
 	static bool shouldMove = false;
 	static std::atomic<bool> shouldAnimate = false;
@@ -103,120 +103,139 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	static RECT rect;
 	static std::thread *timerThread;
 
-    switch (message)
-    {
-	case WM_CREATE: {
-		HBITMAP bitmap = (HBITMAP)LoadImage(hInst, L"D:\\earth.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-		GetObject(bitmap, sizeof BITMAP, &bitmapData);
-		rect = { 0, 0, bitmapData.bmWidth, bitmapData.bmHeight };
+    switch (message) {
+		case WM_CREATE: {
+			HBITMAP bitmap = (HBITMAP)LoadImage(hInst, L"D:\\earth.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+			GetObject(bitmap, sizeof BITMAP, &bitmapData);
+			rect = { 0, 0, bitmapData.bmWidth, bitmapData.bmHeight };
 
-		HDC hdc = GetDC(hWnd);
-		imageDC = CreateTransparentBitmap(hdc, bitmap, bitmapData, brush);
-		ReleaseDC(hWnd, hdc);
+			HDC hdc = GetDC(hWnd);
+			imageDC = CreateTransparentBitmap(hdc, bitmap, bitmapData, brush);
+			ReleaseDC(hWnd, hdc);
 
-		timerThread = new std::thread(Animate, hWnd, &rect, &shouldAnimate);
-		timerThread->detach();
-
-		break;
-	}
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-            // Разобрать выбор в меню:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
+			if (TIMER_ID == 1) {
+				SetTimer(hWnd, IDT_TIMERDEFAULT, 30, nullptr);
+			}
+			else if (TIMER_ID == 2) {
+				shouldAnimate = true;
+				timerThread = new std::thread(createAPCTimer, hWnd, &rect);
+			//	createAPCTimer(hWnd, &rect);
+			}
+			else if (TIMER_ID == 3) {
+				timerThread = new std::thread(Animate, hWnd, &rect, &shouldAnimate);
+			}
+			break;
+		}
+		case WM_COMMAND: {
+			int wmId = LOWORD(wParam);
+			// Разобрать выбор в меню:
+            switch (wmId) {
+				case IDM_ABOUT:
+					DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+					break;
+				case IDM_EXIT:
+					DestroyWindow(hWnd);
+					break;
+				default:
+					return DefWindowProc(hWnd, message, wParam, lParam);
             }
+			break;
         }
-        break;
-	case WM_KEYDOWN: 
-		{
-		switch (wParam)
-		{
-		case VK_UP: {
-			rect.top -= 10;
-			rect.bottom -= 10;
-			break;
-		}
-		case VK_RIGHT: 
-		{
-			rect.left += 10;
-			rect.right += 10;
-			break;
-		}
-		case VK_DOWN:
-		{
-			rect.top += 10;
-			rect.bottom += 10;
-			break;
-		}
-		case VK_LEFT:
-		{
-			rect.left -= 10;
-			rect.right -= 10;
-			break;
-		}
-		case VK_SPACE: {
-			shouldAnimate.store(!shouldAnimate.load(std::memory_order_relaxed), std::memory_order_relaxed);
-			break;
-		}
-		}
-		InvalidateRect(hWnd, nullptr, true);
-		break;
-		}	
-	case WM_LBUTTONDOWN: {
-		shouldMove = true;
-		break;
-	}
-	case WM_MOUSEMOVE: {
-		if (shouldMove) {
-			int x = GET_X_LPARAM(lParam);
-			int y = GET_Y_LPARAM(lParam);
-			rect = { x - bitmapData.bmWidth / 2, y - bitmapData.bmHeight / 2, x + bitmapData.bmWidth / 2, y + bitmapData.bmHeight / 2};
+		case WM_KEYDOWN: {
+			switch (wParam) {
+				case VK_UP: {
+					rect.top -= 10;
+					rect.bottom -= 10;
+					break;
+				}
+				case VK_RIGHT: {
+					rect.left += 10;
+					rect.right += 10;
+					break;
+				}
+				case VK_DOWN: {
+					rect.top += 10;
+					rect.bottom += 10;
+					break;
+				}
+				case VK_LEFT: {
+					rect.left -= 10;
+					rect.right -= 10;
+					break;
+				}
+				case VK_SPACE: {
+					if (TIMER_ID == 1) {
+						KillTimer(hWnd, IDT_TIMERDEFAULT);
+					}
+					else if (TIMER_ID == 2) {
+						shouldAnimate.store(!shouldAnimate.load(std::memory_order_relaxed), std::memory_order_relaxed);
+					}
+					else if (TIMER_ID == 3) {
+					shouldAnimate.store(!shouldAnimate.load(std::memory_order_relaxed), std::memory_order_relaxed);
+					}
+					break;
+				}
+			}
 			InvalidateRect(hWnd, nullptr, true);
+			break;
+		}	
+		case WM_LBUTTONDOWN: {
+			shouldMove = true;
+			break;
 		}
-		break;
-	}
-	case WM_LBUTTONUP: {
-		shouldMove = false;
-		break;
-	}
-	case WM_MOUSEWHEEL: {
-		int vKeys = GET_KEYSTATE_WPARAM(wParam);
-		int minDelta = (int)(GET_WHEEL_DELTA_WPARAM(wParam) / 5);
+		case WM_MOUSEMOVE: {
+			if (shouldMove) {
+				int x = GET_X_LPARAM(lParam);
+				int y = GET_Y_LPARAM(lParam);
+				rect = { x - bitmapData.bmWidth / 2, y - bitmapData.bmHeight / 2, x + bitmapData.bmWidth / 2, y + bitmapData.bmHeight / 2};
+				InvalidateRect(hWnd, nullptr, true);
+			}
+			break;
+		}
+		case WM_LBUTTONUP: {
+			shouldMove = false;
+			break;
+		}
+		case WM_MOUSEWHEEL: {
+			int vKeys = GET_KEYSTATE_WPARAM(wParam);
+			int minDelta = (int)(GET_WHEEL_DELTA_WPARAM(wParam) / 5);
 
-		if (vKeys & MK_SHIFT) {
-			rect.right -= minDelta;
-			rect.left -= minDelta;
+			if (vKeys & MK_SHIFT) {
+				rect.right -= minDelta;
+				rect.left -= minDelta;
+			}
+			else {
+				rect.top -= minDelta;
+				rect.bottom -= minDelta;
+			}
+			InvalidateRect(hWnd, nullptr, true);
+			break;
 		}
-		else {
-			rect.top -= minDelta;
-			rect.bottom -= minDelta;
+		case WM_TIMER: {
+			ChangeBitmapPos(hWnd, &rect);
+			break;
 		}
-		InvalidateRect(hWnd, nullptr, true);
-		break;
-	}
-    case WM_PAINT:
-        {
+		case WM_USER: {
+			if (!shouldAnimate.load(std::memory_order_relaxed)) {
+				CancelWaitableTimer((HANDLE)lParam);
+				CloseHandle((HANDLE)lParam);
+			}
+			ChangeBitmapPos(hWnd, &rect);
+			break;
+		}
+		case WM_PAINT: {
 			PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
 			BitBlt(hdc, rect.left, rect.top, bitmapData.bmWidth, bitmapData.bmHeight, imageDC, 0, 0, SRCCOPY);
             EndPaint(hWnd, &ps);
+			break;
         }
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
-    }
+		case WM_DESTROY:
+			PostQuitMessage(0);
+			break;
+		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);
+	}
     return 0;
 }
 
