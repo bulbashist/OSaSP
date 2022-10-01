@@ -24,9 +24,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_ LPWSTR    lpCmdLine,
                      _In_ int       nCmdShow)
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
-
     // TODO: Разместите код здесь.
 
     // Инициализация глобальных строк
@@ -35,24 +32,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MyRegisterClass(hInstance);
 
     // Выполнить инициализацию приложения:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+	InitInstance(hInstance, nCmdShow);
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_LAB1));
+	MSG msg;
 
-    MSG msg;
+	while (true) {
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+			if (msg.message == WM_QUIT) return 0;
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
 
-    // Цикл основного сообщения:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-         {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-         }
-    }
+		SleepEx(0, true);
+	}
 
     return (int) msg.wParam;
 }
@@ -69,7 +61,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hInstance      = hInstance;
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_LAB1));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-	wcex.hbrBackground  =  brush;
+	wcex.hbrBackground  = brush;
     wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_LAB1);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
@@ -83,11 +75,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
-
-   if (!hWnd)
-   {
-      return FALSE;
-   }
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
@@ -103,6 +90,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	static RECT rect;
 	static std::thread *timerThread;
 
+	static HANDLE waitTimer;
+
     switch (message) {
 		case WM_CREATE: {
 			HBITMAP bitmap = (HBITMAP)LoadImage(hInst, L"D:\\earth.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
@@ -117,14 +106,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				SetTimer(hWnd, IDT_TIMERDEFAULT, 30, nullptr);
 			}
 			else if (TIMER_ID == 2) {
-				shouldAnimate = true;
-				timerThread = new std::thread(createAPCTimer, hWnd, &rect);
-			//	createAPCTimer(hWnd, &rect);
+				waitTimer = createAPCTimer(hWnd);
 			}
 			else if (TIMER_ID == 3) {
 				timerThread = new std::thread(Animate, hWnd, &rect, &shouldAnimate);
 			}
 			break;
+		}
+		case WM_ERASEBKGND: {
+			return 1;
 		}
 		case WM_COMMAND: {
 			int wmId = LOWORD(wParam);
@@ -168,10 +158,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 						KillTimer(hWnd, IDT_TIMERDEFAULT);
 					}
 					else if (TIMER_ID == 2) {
-						shouldAnimate.store(!shouldAnimate.load(std::memory_order_relaxed), std::memory_order_relaxed);
+						if (waitTimer) {
+							CancelWaitableTimer(waitTimer);
+							CloseHandle(waitTimer);
+							waitTimer = nullptr;
+						}
 					}
 					else if (TIMER_ID == 3) {
-					shouldAnimate.store(!shouldAnimate.load(std::memory_order_relaxed), std::memory_order_relaxed);
+						shouldAnimate.store(!shouldAnimate.load(std::memory_order_relaxed), std::memory_order_relaxed);
 					}
 					break;
 				}
@@ -216,10 +210,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			break;
 		}
 		case WM_USER: {
-			if (!shouldAnimate.load(std::memory_order_relaxed)) {
-				CancelWaitableTimer((HANDLE)lParam);
-				CloseHandle((HANDLE)lParam);
-			}
 			ChangeBitmapPos(hWnd, &rect);
 			break;
 		}

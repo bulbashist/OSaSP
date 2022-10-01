@@ -2,19 +2,15 @@
 #include <Windows.h>
 
 void CALLBACK TimerAPCProc(LPVOID lpArg, DWORD dwTimerLowValue, DWORD dwTimerHighValue) {
-	TimerArgs *args = (TimerArgs*)lpArg;
-	PostMessage(args->hWnd, WM_USER, 0, (LPARAM)args->timer);
-	WaitForSingleObjectEx(args->timer, INFINITE, true);
+	PostMessage((HWND)lpArg, WM_USER, 0, 0);
 }
 
-void createAPCTimer(HWND hWnd, RECT *rect) {
-	LARGE_INTEGER delay = {};
-	TimerArgs args;
-	args.hWnd = hWnd;
-	args.rect = rect;
+HANDLE createAPCTimer(HWND hWnd) {
+	LARGE_INTEGER delay;
+	delay.QuadPart = -0;
 
 	HANDLE hTimer = CreateWaitableTimer(nullptr, false, L"TestTimer");
-	args.timer = hTimer;
-	SetWaitableTimer(hTimer, &delay, 15, TimerAPCProc, &args, false);          // Do not restore a suspended system
-	SleepEx(15, true);
+	SetWaitableTimer(hTimer, &delay, 15, TimerAPCProc, hWnd, false);          // Do not restore a suspended system
+
+	return hTimer;
 }
