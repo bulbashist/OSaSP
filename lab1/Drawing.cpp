@@ -50,17 +50,17 @@ void Bounce(HWND hWnd, RECT rect) {
 	GetClientRect(hWnd, &windowRect);
 
 	if (rect.top <= windowRect.top) {
-		MOVE_BOTTOM = 5;
+		MOVE_BOTTOM = -MOVE_BOTTOM;
 	}
 	else if (rect.bottom >= windowRect.bottom) {
-		MOVE_BOTTOM = -5;
+		MOVE_BOTTOM = -MOVE_BOTTOM;
 	}
 
 	if (rect.right >= windowRect.right) {
-		MOVE_RIGHT = -5;
+		MOVE_RIGHT = -MOVE_RIGHT;
 	}
 	else if (rect.left <= windowRect.left) {
-		MOVE_RIGHT = 5;
+		MOVE_RIGHT = -MOVE_RIGHT;
 	}
 }
 

@@ -10,7 +10,7 @@ HANDLE createAPCTimer(HWND hWnd) {
 	delay.QuadPart = -0;
 
 	HANDLE hTimer = CreateWaitableTimer(nullptr, false, L"TestTimer");
-	SetWaitableTimer(hTimer, &delay, 15, TimerAPCProc, hWnd, false);          // Do not restore a suspended system
+	SetWaitableTimer(hTimer, &delay, 5, TimerAPCProc, hWnd, false);          // Do not restore a suspended system
 
 	return hTimer;
 }

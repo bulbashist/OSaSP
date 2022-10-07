@@ -91,12 +91,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	static std::thread *timerThread;
 
 	static HANDLE waitTimer;
+	static HDC memDC = nullptr;
+	static HBITMAP memMap = nullptr;
+	static RECT clientRect;
+
+	static HBITMAP bitmap;
 
     switch (message) {
 		case WM_CREATE: {
-			HBITMAP bitmap = (HBITMAP)LoadImage(hInst, L"D:\\earth.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+			bitmap = (HBITMAP)LoadImage(hInst, L"D:\\earth.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 			GetObject(bitmap, sizeof BITMAP, &bitmapData);
 			rect = { 0, 0, bitmapData.bmWidth, bitmapData.bmHeight };
+
+			GetWindowRect(hWnd, &clientRect);
 
 			HDC hdc = GetDC(hWnd);
 			imageDC = CreateTransparentBitmap(hdc, bitmap, bitmapData, brush);
@@ -113,9 +120,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			}
 			break;
 		}
+		
 		case WM_ERASEBKGND: {
-			return 1;
+			return 0;
 		}
+		
 		case WM_COMMAND: {
 			int wmId = LOWORD(wParam);
 			// Разобрать выбор в меню:
@@ -216,7 +225,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		case WM_PAINT: {
 			PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-			BitBlt(hdc, rect.left, rect.top, bitmapData.bmWidth, bitmapData.bmHeight, imageDC, 0, 0, SRCCOPY);
+
+			if (memDC == nullptr) memDC = CreateCompatibleDC(hdc);
+			if (memMap == nullptr) memMap = CreateCompatibleBitmap(hdc, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+			HBITMAP old = (HBITMAP)SelectObject(memDC, memMap);
+
+			FillRect(memDC, &ps.rcPaint, brush);
+
+			BitBlt(memDC, rect.left, rect.top, bitmapData.bmWidth, bitmapData.bmHeight, imageDC, 0, 0, SRCCOPY);
+			BitBlt(hdc, 0, 0, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top, memDC, 0, 0, SRCCOPY);
+			SelectObject(memDC, old);
+			//BitBlt(hdc, rect.left, rect.top, bitmapData.bmWidth, bitmapData.bmHeight, imageDC, 0, 0, SRCCOPY);
             EndPaint(hWnd, &ps);
 			break;
         }
