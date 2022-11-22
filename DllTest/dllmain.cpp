@@ -25,7 +25,7 @@ typedef struct __Vector {
 
 //16 mod 10 + 3 = 9
 extern "C" __declspec(dllexport) void Draw(HDC hDC, int x, int y, int radius) {
-	constexpr auto size = 4;
+	constexpr auto size = 6;
 	double step = 2 * 3.1415 / size;
 	int arr[size] = { 0 };
 	Vector vectors[size] = { 0 };

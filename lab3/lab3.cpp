@@ -109,11 +109,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			point.x = 200;
 			point.y = 200;
 
-			std::string path = "D:/student/3 курс 1 сем/ОСиСП/lab3/lab3/plugins";
+			std::string path = "D:/student/3 курс 1 сем/ОСиСП/lab3/lab3/plugins/";
 			for (auto entry : fs::directory_iterator(path)) {
 				const fs::v1::path filename = entry.path().filename();
 				if (filename.extension()._Mystr == L".dll") {
-					paths->emplace_back(filename._Mystr);
+					paths->emplace_back(path + filename.string());
 				}
 			}
 			
