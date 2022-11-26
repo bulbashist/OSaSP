@@ -1,6 +1,9 @@
-﻿#include <filesystem>
+﻿#pragma once
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+
+#include <Windows.h>
 
 #include "SuperCoolList.h"
 #include "ThreadPool.h"
@@ -8,13 +11,15 @@
 //using namespace std;
 namespace fs = std::filesystem;
 
-std::list<std::pair<fs::path, int>> *collection;
+SuperCoolList<std::pair<fs::path, int>> *collection;
 
 void task(fs::path path);
 
 int main()
 {
-	collection = new std::list<std::pair<fs::path, int>>();
+	setlocale(LC_ALL, "Russian");
+
+	collection = new SuperCoolList<std::pair<fs::path, int>>();
 	std::vector<fs::path> *paths = new std::vector<fs::path>();
     std::string path = "D:/student/3 курс 1 сем/ОСиСП/lab4/lab4/test/";
 
@@ -25,18 +30,16 @@ int main()
 		}
 	}
 
-	ThreadPool *pool = new ThreadPool(paths->size());
+	ThreadPool *pool = new ThreadPool(paths->size() / 4);
 	for (int i = 0; i < paths->size(); i++) {
-		//task(paths->at(i));
 		pool->add_task(task, std::ref(paths->at(i)));
 	}
 	pool->wait_all();
-	
+	delete(pool);
 
-	for (auto item : *collection) {
+	for (auto& item : *collection->collection) {
 		std::cout << item.first << " " << item.second << std::endl;
 	}
-    std::cout << "Hello World!\n";
 }
 
 void task(fs::path path) {
@@ -56,6 +59,7 @@ void task(fs::path path) {
 			if (file.eof()) break;
 		}
 	}
+
 	std::pair<fs::path, int> *temp = new std::pair<fs::path, int>(path.filename(), counter);
-	collection->emplace_back(*temp);
+	collection->add(*temp);
 }
